@@ -3,4 +3,4 @@ pandas>=2.0,<3
 numpy>=1.24,<3
 plotly>=5.20,<7
 pyodbc>=5.0,<6; platform_system == "Windows"
-
+scikit-learn>=1.5,<2
