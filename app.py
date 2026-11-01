@@ -801,6 +801,27 @@ elif page == "Predictive Model Lab":
         "Enter delivery and order characteristics to estimate the review class. "
         "The prediction is an estimate based on historical Olist data."
     )
+    with st.expander("What to enter and where to find it"):
+        st.markdown(
+            """
+            Use a delivered order's dates and item details. The date fields are in the **orders** table;
+            item and seller counts come from **order_items**.
+
+            | Input | What it means |
+            |---|---|
+            | Days early or late vs. estimate | Actual delivery date minus estimated delivery date. Negative = early; 0 = on time; positive = late. |
+            | Total delivery time | Actual delivery date minus purchase date. |
+            | Carrier-to-customer transit | Actual delivery date minus carrier handoff date. |
+            | Approval-to-carrier handoff | Carrier handoff date minus order approval date. |
+            | Sellers in the order | Count of distinct seller IDs in the order. |
+            | Items in the order | Number of item lines in the order. |
+            | Review survey timing | Choose “Before delivery” when the review creation date is before delivery; otherwise choose “After delivery”. |
+            """
+        )
+        st.caption(
+            "Date values are measured in whole days. “Is late” is calculated automatically from the delay value. "
+            "If you do not have a particular order to enter, the form's starting values are a sample."
+        )
     with st.form("live_review_prediction"):
         input_col1, input_col2, input_col3 = st.columns(3)
         with input_col1:
@@ -809,13 +830,15 @@ elif page == "Predictive Model Lab":
                 min_value=-60,
                 max_value=365,
                 value=0,
-                help="Negative means delivered early; positive means delivered late.",
+                help="Use actual delivery date minus estimated delivery date from the orders table. Negative = early; 0 = on time; positive = late.",
             )
             delivery_days = st.number_input(
-                "Total delivery time (days)", min_value=0, max_value=365, value=12
+                "Total delivery time (days)", min_value=0, max_value=365, value=12,
+                help="Actual customer delivery date minus purchase timestamp from the orders table.",
             )
             transit_days = st.number_input(
-                "Carrier-to-customer transit (days)", min_value=0, max_value=365, value=7
+                "Carrier-to-customer transit (days)", min_value=0, max_value=365, value=7,
+                help="Actual delivery date minus the date the order was handed to the carrier.",
             )
         with input_col2:
             carrier_handoff_days = st.number_input(
@@ -823,18 +846,21 @@ elif page == "Predictive Model Lab":
                 min_value=0,
                 max_value=180,
                 value=2,
+                help="Carrier handoff date minus order approval date, in whole days.",
             )
             unique_sellers = st.number_input(
-                "Sellers in the order", min_value=1, max_value=50, value=1
+                "Sellers in the order", min_value=1, max_value=50, value=1,
+                help="Count of distinct seller IDs in the order's item lines.",
             )
         with input_col3:
             total_items = st.number_input(
-                "Items in the order", min_value=1, max_value=100, value=1
+                "Items in the order", min_value=1, max_value=100, value=1,
+                help="Number of order-item lines for this order.",
             )
             survey_timing = st.selectbox(
                 "Review survey timing",
                 ["After delivery", "Before delivery"],
-                help="Whether the delivery date was later than the review creation date.",
+                help="Choose Before delivery if review_creation_date is earlier than order_delivered_customer_date; otherwise choose After delivery.",
             )
         predict_clicked = st.form_submit_button(
             "Predict review class", type="primary", use_container_width=True
