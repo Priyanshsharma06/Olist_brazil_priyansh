@@ -12,6 +12,16 @@ An interactive Olist analytics application with local SQL Server support and a h
 - Data Explorer with SQL table previews and a missing-value / duplicate-row overview
 - Predictive Model Lab with notebook evaluation metrics, class-level scores, and feature correlation heatmap
 
+## Repository contents
+
+- `app.py` — interactive Streamlit analytics app
+- `requirements.txt` — app dependencies
+- `sql/SQL-cleaning-internship.sql` — SQL exploration and cleaning queries
+- `notebooks/EDA-internship.ipynb` — EDA workflow
+- `notebooks/MODEL-internship.ipynb` — model workflow and feature-correlation heatmap
+
+The CSV datasets and presentation are kept outside this GitHub repository. The deployed app reads the required CSVs from a public Hugging Face Dataset using URLs configured in Streamlit Secrets.
+
 ## Run on Windows
 
 1. Extract the project folder.
