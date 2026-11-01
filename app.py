@@ -334,7 +334,6 @@ def fit_review_model(features: pd.DataFrame, targets: pd.Series):
         features, targets, test_size=0.20, random_state=42
     )
     model = LogisticRegression(
-        multi_class="multinomial",
         class_weight="balanced",
         max_iter=1000,
         random_state=42,
