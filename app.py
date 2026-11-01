@@ -814,19 +814,19 @@ elif page == "Predictive Model Lab":
                 min_value=-60,
                 max_value=365,
                 value=0,
-                help="Use actual delivery date minus estimated delivery date from the orders table. Negative = early; 0 = on time; positive = late.",,
+                help="Use actual delivery date minus estimated delivery date from the orders table. Negative = early; 0 = on time; positive = late.",
                 label_visibility="collapsed"
             )
             st.markdown("**Total delivery time (days)**")
             delivery_days = st.number_input(
                 "Total delivery time (days)", min_value=0, max_value=365, value=12,
-                help="Actual customer delivery date minus purchase timestamp from the orders table.",,
+                help="Actual customer delivery date minus purchase timestamp from the orders table.",
                 label_visibility="collapsed"
             )
             st.markdown("**Carrier-to-customer transit (days)**")
             transit_days = st.number_input(
                 "Carrier-to-customer transit (days)", min_value=0, max_value=365, value=7,
-                help="Actual delivery date minus the date the order was handed to the carrier.",,
+                help="Actual delivery date minus the date the order was handed to the carrier.",
                 label_visibility="collapsed"
             )
         with input_col2:
@@ -836,20 +836,20 @@ elif page == "Predictive Model Lab":
                 min_value=0,
                 max_value=180,
                 value=2,
-                help="Carrier handoff date minus order approval date, in whole days.",,
+                help="Carrier handoff date minus order approval date, in whole days.",
                 label_visibility="collapsed"
             )
             st.markdown("**Sellers in the order**")
             unique_sellers = st.number_input(
                 "Sellers in the order", min_value=1, max_value=50, value=1,
-                help="Count of distinct seller IDs in the order's item lines.",,
+                help="Count of distinct seller IDs in the order's item lines.",
                 label_visibility="collapsed"
             )
         with input_col3:
             st.markdown("**Items in the order**")
             total_items = st.number_input(
                 "Items in the order", min_value=1, max_value=100, value=1,
-                help="Number of order-item lines for this order.",,
+                help="Number of order-item lines for this order.",
                 label_visibility="collapsed"
             )
             st.markdown("**Review survey timing**")
