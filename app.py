@@ -280,6 +280,8 @@ def load_project_data() -> Dict[str, pd.DataFrame]:
         total_items=("order_item_id", "count"),
     )
     model_rows = model_rows.merge(seller_agg, on="order_id", how="left")
+    model_rows["review_score"] = pd.to_numeric(model_rows["review_score"], errors="coerce")
+    model_rows = model_rows[model_rows["review_score"].notna()].copy()
     model_rows["review_creation_date"] = pd.to_datetime(
         model_rows["review_creation_date"], errors="coerce"
     )
@@ -309,12 +311,36 @@ def load_project_data() -> Dict[str, pd.DataFrame]:
     return {
         **raw,
         "model_features": model_rows[model_feature_names],
+        "model_targets": np.where(
+            model_rows["review_score"] <= 2,
+            "Negative [1-2]",
+            np.where(model_rows["review_score"] == 3, "Neutral [3]", "Positive [4-5]"),
+        ),
         "orders_clean": orders,
         "products_clean": products,
         "reviews_clean": reviews,
         "sales": sales,
         "delivery": delivery,
     }
+
+
+@st.cache_resource(show_spinner="Training the review-score prediction model...")
+def fit_review_model(features: pd.DataFrame, targets: pd.Series):
+    """Train the notebook's balanced multinomial model once per app process."""
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import train_test_split
+
+    x_train, _, y_train, _ = train_test_split(
+        features, targets, test_size=0.20, random_state=42
+    )
+    model = LogisticRegression(
+        multi_class="multinomial",
+        class_weight="balanced",
+        max_iter=1000,
+        random_state=42,
+    )
+    model.fit(x_train, y_train)
+    return model
 
 
 def money(value: float) -> str:
@@ -771,6 +797,106 @@ elif page == "Predictive Model Lab":
         f"Held-out test set: {test_n:,} examples · 80/20 split."
     )
 
+    st.markdown("#### Try a live review-score prediction")
+    st.caption(
+        "Enter delivery and order characteristics to estimate the review class. "
+        "The prediction is an estimate based on historical Olist data."
+    )
+    with st.form("live_review_prediction"):
+        input_col1, input_col2, input_col3 = st.columns(3)
+        with input_col1:
+            delay_days = st.number_input(
+                "Days early or late vs. estimate",
+                min_value=-60,
+                max_value=365,
+                value=0,
+                help="Negative means delivered early; positive means delivered late.",
+            )
+            delivery_days = st.number_input(
+                "Total delivery time (days)", min_value=0, max_value=365, value=12
+            )
+            transit_days = st.number_input(
+                "Carrier-to-customer transit (days)", min_value=0, max_value=365, value=7
+            )
+        with input_col2:
+            carrier_handoff_days = st.number_input(
+                "Approval-to-carrier handoff (days)",
+                min_value=0,
+                max_value=180,
+                value=2,
+            )
+            unique_sellers = st.number_input(
+                "Sellers in the order", min_value=1, max_value=50, value=1
+            )
+        with input_col3:
+            total_items = st.number_input(
+                "Items in the order", min_value=1, max_value=100, value=1
+            )
+            survey_timing = st.selectbox(
+                "Review survey timing",
+                ["After delivery", "Before delivery"],
+                help="Whether the delivery date was later than the review creation date.",
+            )
+        predict_clicked = st.form_submit_button(
+            "Predict review class", type="primary", use_container_width=True
+        )
+
+    if predict_clicked:
+        prediction_features = pd.DataFrame([{
+            "delay_days": float(delay_days),
+            "is_late": int(delay_days > 0),
+            "delivery_days": float(delivery_days),
+            "transit_days": float(transit_days),
+            "carrier_handoff_days": float(carrier_handoff_days),
+            "survey_before_delivery": int(survey_timing == "Before delivery"),
+            "unique_sellers": float(unique_sellers),
+            "total_items": float(total_items),
+        }], columns=data["model_features"].columns)
+        prediction_targets = pd.Series(data["model_targets"], name="review_class")
+        try:
+            review_model = fit_review_model(data["model_features"], prediction_targets)
+            predicted_class = review_model.predict(prediction_features)[0]
+            class_probabilities = pd.DataFrame({
+                "Review class": review_model.classes_,
+                "Probability": review_model.predict_proba(prediction_features)[0],
+            }).sort_values("Probability", ascending=False)
+            result_col, confidence_col = st.columns(2)
+            result_col.metric("Predicted review class", predicted_class)
+            confidence_col.metric(
+                "Highest class probability",
+                f"{class_probabilities.iloc[0]['Probability']:.1%}",
+            )
+            probability_chart = px.bar(
+                class_probabilities,
+                x="Review class",
+                y="Probability",
+                color="Review class",
+                color_discrete_map={
+                    "Negative [1-2]": "#D17A70",
+                    "Neutral [3]": "#E3A857",
+                    "Positive [4-5]": TEAL,
+                },
+                range_y=[0, 1],
+                text_auto=".1%",
+            )
+            probability_chart.update_layout(
+                template="plotly_white",
+                yaxis_tickformat=".0%",
+                yaxis_title="Estimated probability",
+                xaxis_title="",
+                showlegend=False,
+                height=300,
+                margin=dict(l=10, r=10, t=15, b=10),
+            )
+            st.plotly_chart(probability_chart, use_container_width=True)
+            st.caption(
+                "Class probabilities are model estimates, not guarantees. "
+                "The model is trained on the project's historical review and delivery data."
+            )
+        except Exception as exc:
+            st.error("The live prediction could not be generated.")
+            st.exception(exc)
+
     left, right = st.columns([1, 1.2], gap="large")
     with left:
         st.markdown("#### Confusion matrix")
@@ -859,8 +985,8 @@ elif page == "Predictive Model Lab":
         "late-delivery status, survey timing, seller count, and item count."
     )
     st.info(
-        "Notebook test results; filters do not change these scores. Live predictions are unavailable "
-        "because the app folder has no saved model file."
+        "Notebook test results; filters do not change these scores. The form above trains the same "
+        "balanced Logistic Regression model from the project data and returns a live prediction."
     )
 
 st.divider()
